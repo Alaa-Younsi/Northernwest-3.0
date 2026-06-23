@@ -64,6 +64,7 @@ create table if not exists orders (
   address_line1 text not null,
   address_line2 text,
   zip_code text,
+  notes text,
   total_amount numeric(10,2) not null,
   status text not null default 'pending' check (status in ('pending','confirmed','shipped','delivered','cancelled')),
   created_at timestamptz default now(),
