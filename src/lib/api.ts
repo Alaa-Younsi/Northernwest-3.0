@@ -155,14 +155,19 @@ export const api = {
       const variantIds = items.map((i) => i.variant_id);
       const { data: variants, error: varErr } = await supabase
         .from('product_variants')
-        .select('id, price_modifier, products(base_price)')
+        .select('id, price_modifier, name_en, products(id, base_price, name_en)')
         .in('id', variantIds);
       if (varErr) throw new Error(varErr.message);
 
       const priceMap: Record<string, number> = {};
+      const nameMap: Record<string, { productName: string; variantName: string }> = {};
       for (const v of variants ?? []) {
         const base = (v as any).products?.base_price ?? 0;
         priceMap[v.id] = base + v.price_modifier;
+        nameMap[v.id] = {
+          productName: (v as any).products?.name_en ?? '',
+          variantName: (v as any).name_en ?? '',
+        };
       }
 
       const total_amount = items.reduce(
@@ -183,6 +188,8 @@ export const api = {
         variant_id: i.variant_id,
         quantity: i.quantity,
         unit_price: priceMap[i.variant_id] ?? 0,
+        product_name_en: nameMap[i.variant_id]?.productName ?? '',
+        variant_name_en: nameMap[i.variant_id]?.variantName ?? '',
       }));
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems);
       if (itemsErr) throw new Error(itemsErr.message);
