@@ -155,17 +155,18 @@ export const api = {
       const variantIds = items.map((i) => i.variant_id);
       const { data: variants, error: varErr } = await supabase
         .from('product_variants')
-        .select('id, price_modifier, name_en, products(id, base_price, name_en)')
+        .select('id, product_id, price_modifier, name_en, products!product_id(id, base_price, name_en)')
         .in('id', variantIds);
       if (varErr) throw new Error(varErr.message);
 
       const priceMap: Record<string, number> = {};
-      const nameMap: Record<string, { productName: string; variantName: string }> = {};
+      const nameMap: Record<string, { productId: string; productName: string; variantName: string }> = {};
       for (const v of variants ?? []) {
-        const base = (v as any).products?.base_price ?? 0;
-        priceMap[v.id] = base + v.price_modifier;
+        const prod = (v as any).products as { id: string; base_price: number; name_en: string } | null;
+        priceMap[v.id] = (prod?.base_price ?? 0) + v.price_modifier;
         nameMap[v.id] = {
-          productName: (v as any).products?.name_en ?? '',
+          productId: prod?.id ?? (v as any).product_id ?? '',
+          productName: prod?.name_en ?? '',
           variantName: (v as any).name_en ?? '',
         };
       }
@@ -185,11 +186,12 @@ export const api = {
 
       const orderItems = items.map((i) => ({
         order_id: order.id,
+        product_id: nameMap[i.variant_id]?.productId || null,
         variant_id: i.variant_id,
         quantity: i.quantity,
         unit_price: priceMap[i.variant_id] ?? 0,
-        product_name_en: nameMap[i.variant_id]?.productName ?? '',
-        variant_name_en: nameMap[i.variant_id]?.variantName ?? '',
+        product_name_en: nameMap[i.variant_id]?.productName || 'Unknown Product',
+        variant_name_en: nameMap[i.variant_id]?.variantName || null,
       }));
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems);
       if (itemsErr) throw new Error(itemsErr.message);
